@@ -67,9 +67,10 @@ int main(int argc, const char** argv)
 
 	// Write out the saved file name with the box dimensions and thresholds
 	OutStream << mode << "_" << OutputPath << ".bmp";
+	std::string savePath = OutStream.str();
+	savePath = "filtered_images/"+OutStream.str();
+	EdgeDetector.SaveImage(savePath.c_str());
 
-	EdgeDetector.SaveImage(OutStream.str().c_str());
-
-	std::cout << "Filter successfully ran and image saved to: " << OutStream.str() << std::endl;
+	std::cout << "Filter successfully ran and image saved to: " << savePath << std::endl;
 	std::cout << "<-------------------------------------------------------------------->" << std::endl;
 }
