@@ -9,7 +9,7 @@
 
 // Creates a new Wrapper for the OpenCL program with the 
 // provided OpenCL kernel filename
-SobelFilter::SobelFilter()
+SobelFilter::SobelFilter(std::string& m)
 {
 	this->GetPlatforms();
 
@@ -20,6 +20,25 @@ SobelFilter::SobelFilter()
 	this->CreateCommandQueue();
 
 	this->CreateProgram("SobelFilter.cl");
+
+	// Set Edge Detector mode depending on provided argument
+	// 0 or not provided -> Sobel
+	// 1 -> Prewitt
+	// 2 -> Scharr
+	// 3 -> Roberts' Cross
+	if (m=="sobel"){
+		this->Mode = 0;
+	} else if (m=="prewitt") {
+		this->Mode = 1;
+	} else if (m=="scharr") {
+		this->Mode = 2;
+	} else if (m=="roberts"){
+		this->Mode = 3;
+	} else{
+		std::cout<<"No supported edge detector method provided. Defaulting to Sobel."<<std::endl;
+		m="sobel";
+	}
+	std::cout<<"Edge Detector mode set to: "<<m<<std::endl;
 }
 
 // Destructor to cleanup the SobelFilter object
@@ -291,19 +310,6 @@ int SobelFilter::Run()
 	}
 
 	size_t LocalWorkSize[2] = { 1, 1 };
-
-	// Use this to find the maximum local work size
-	/*
-	ErrNum = clGetKernelWorkGroupInfo(
-		this->Kernel,
-		this->PrimaryDevice,
-		CL_KERNEL_WORK_GROUP_SIZE,
-		0,
-		&LocalWorkSize,
-		nullptr
-	);
-	*/
-
 	size_t GlobalWorkSize[2] = { 
 		this->ImageWidth >= LocalWorkSize[0] ? this->ImageWidth : LocalWorkSize[0],
 		this->ImageHeight >= LocalWorkSize[1] ? this->ImageHeight : LocalWorkSize[1] 
@@ -354,6 +360,8 @@ int SobelFilter::CreateKernel(const std::string kernelName)
 	ErrNum |= clSetKernelArg(this->Kernel, 1, sizeof(cl_mem), &this->OutputImage);	
 	ErrNum |= clSetKernelArg(this->Kernel, 2, sizeof(cl_int), &this->ImageWidth);
 	ErrNum |= clSetKernelArg(this->Kernel, 3, sizeof(cl_int), &this->ImageHeight);
+	ErrNum |= clSetKernelArg(this->Kernel, 4, sizeof(cl_int), &this->Mode);
+
 
 	if (ErrNum != CL_SUCCESS)
 	{
@@ -396,26 +404,6 @@ int SobelFilter::LoadImage(const char* fileName)
 
 	cl_mem_flags Flags = CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR;
 
-	// OpenCL 2.0
-	/*
-	cl_image_desc ImageDescription;
-	ImageDescription.image_type = CL_MEM_OBJECT_IMAGE2D;
-	ImageDescription.image_width = this->ImageWidth;
-	ImageDescription.image_height = this->ImageHeight;
-	ImageDescription.buffer = nullptr;
-	ImageDescription.image_slice_pitch = 0;
-	ImageDescription.image_row_pitch = 0;
-
-	this->InputImage = clCreateImage(
-		this->Context,
-		Flags,
-		&Format,
-		&ImageDescription,
-		(void *)Pixels,
-		&ErrNum
-	);
-	*/
-
 	this->InputImage = clCreateImage2D(
 		this->Context,
 		Flags,
@@ -446,27 +434,7 @@ int SobelFilter::CreateOutputImage()
 	OutputFormat.image_channel_order = CL_RGBA;
 	OutputFormat.image_channel_data_type = CL_UNSIGNED_INT8;
 
-	// OpenCL 2.0
-	/*
-	cl_image_desc ImageDescription;
-	ImageDescription.image_type = CL_MEM_OBJECT_IMAGE2D;
-	ImageDescription.image_width = this->ImageWidth;
-	ImageDescription.image_height = this->ImageHeight;
-	ImageDescription.buffer = nullptr;
-	ImageDescription.image_slice_pitch = 0;
-	ImageDescription.image_row_pitch = 0;
-
-
-	this->OutputImage = clCreateImage(
-	this->Context,
-	CL_MEM_WRITE_ONLY,
-	&OutputFormat,
-	&ImageDescription,
-	nullptr,
-	&ErrNum
-	);
-	*/
-
+	
 	this->OutputImage = clCreateImage2D(
 		this->Context,
 		CL_MEM_WRITE_ONLY,

@@ -1,31 +1,31 @@
-#ifndef __linux__
-#include "stdafx.h"
-#else
-#include <string.h>
-#endif
 
+#include <string.h>
 #include <iostream>
 #include <sstream>
 #include "SobelFilter.h"
 
 int main(int argc, const char** argv)
 {
+	std::cout << "<-------------------------------------------------------------------->" << std::endl;
 	std::cout << "Beginning program." << std::endl;
 
-	if (argc < 2)
+	if (argc < 3)
 	{
-		std::cout << "Program requires 1 input, the path to the image file." << std::endl;
+		std::cout << "Program requires 2 inputs, the path to the image file and the edge detector mode." << std::endl;
+		std::cout << "Usage: ./sobel <path> <mode>" << std::endl;
+		std::cout << "Supported modes: sobel, prewitt, scharr, roberts" << std::endl;
+
 		return 1;
 	}
 
 	std::string Path = argv[1];
-
+	std::string mode = argv[2];
 	std::cout << "Creating edge detector." << std::endl;
 
 	// Declare the edge detector
-	SobelFilter EdgeDetector;
+	SobelFilter EdgeDetector(mode);
 
-	std::cout << "Loading image" << std::endl;
+	std::cout << "Loading image: "<< Path << std::endl;
 
 	// Load the image from the file
 	EdgeDetector.LoadImage(Path.c_str());
@@ -66,9 +66,10 @@ int main(int argc, const char** argv)
 	std::ostringstream OutStream;
 
 	// Write out the saved file name with the box dimensions and thresholds
-	OutStream << "sobel_" << OutputPath << ".bmp";
+	OutStream << mode << "_" << OutputPath << ".bmp";
 
 	EdgeDetector.SaveImage(OutStream.str().c_str());
 
 	std::cout << "Filter successfully ran and image saved to: " << OutStream.str() << std::endl;
+	std::cout << "<-------------------------------------------------------------------->" << std::endl;
 }

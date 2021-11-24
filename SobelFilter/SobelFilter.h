@@ -29,6 +29,7 @@ private:
 	cl_device_id PrimaryDevice;
 	cl_uint ImageHeight;
 	cl_uint ImageWidth;
+	cl_uint Mode=0;
 
 	int GetPlatforms();
 	int GetDevices();
@@ -39,7 +40,7 @@ private:
 	int CreateKernel(const std::string kernelName);
 
 public:
-	SobelFilter();
+	SobelFilter(std::string&);
 	~SobelFilter();
 	int Run();
 	int LoadImage(const char* fileName);

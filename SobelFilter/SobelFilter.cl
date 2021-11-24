@@ -2,22 +2,7 @@ const sampler_t Sampler = CLK_NORMALIZED_COORDS_FALSE |
 							CLK_ADDRESS_CLAMP |
 							CLK_FILTER_NEAREST;
 
-/*
-// These are not actually needed, but included for reference
-__constant int HorizontalFilter[9] = {
-	1, 0, -1,
-	2, 0, -2,
-	1, 0, -1
-};
-
-__constant int VerticalFilter[9] = {
-	1, 2, 1,
-	0, 0, 0,
-	-1, -2, -1
-};
-*/
-
-// Runs the Sobel Filter on an image, this expects the image to be read in
+// Runs the Edge Detector Filter on an image, this expects the image to be read in
 // using unsigned integers to represent the RGB channels and should be between
 // 0 and 255. This means the format CL_UNSIGNED_INT8 should be used when creating
 // the image2d_t source and output
@@ -25,7 +10,8 @@ __kernel void SobelFilter(
 	__read_only image2d_t sourceImage, 
 	__write_only image2d_t outputImage,
 	int width,
-	int height
+	int height,
+	int mode
 	)
 { 
 	// This is the currently focused pixel and is the output pixel
@@ -44,6 +30,8 @@ __kernel void SobelFilter(
 		uint4 Pixel02 = read_imageui(sourceImage, Sampler, (int2)(x + 1, y - 1));
 
 		uint4 Pixel10 = read_imageui(sourceImage, Sampler, (int2)(x - 1, y));
+		// Only for Roberts, we need the exact pixel (x,y)
+		uint4 Pixel11 = read_imageui(sourceImage, Sampler, (int2)(x, y));
 		uint4 Pixel12 = read_imageui(sourceImage, Sampler, (int2)(x + 1, y));
 
 		uint4 Pixel20 = read_imageui(sourceImage, Sampler, (int2)(x - 1, y + 1));
@@ -54,12 +42,40 @@ __kernel void SobelFilter(
 		// under this convolution and applying the appropriate
 		// filter, here we've already applied the filter coefficients
 		// since they are static
-		uint4 Gx = Pixel00 + (2 * Pixel10) + Pixel20 -
-				Pixel02 - (2 * Pixel12) - Pixel22;
 
-		uint4 Gy = Pixel00 + (2 * Pixel01) + Pixel02 -
-				Pixel20 - (2 * Pixel21) - Pixel22;
-		
+		// 0 -> Sobel
+		// 1 -> Prewitt
+		// 2 -> Scharr
+		// 3 -> Roberts' Cross
+		uint4 Gx, Gy;
+		if (mode == 0){
+			// Sobel
+			Gx = Pixel00 + 2 * Pixel10 + Pixel20 -
+				Pixel02 - 2 * Pixel12 - Pixel22;
+
+		 	Gy = Pixel00 + 2 * Pixel01 + Pixel02-
+				Pixel20 - 2 * Pixel21 - Pixel22;
+		} else if(mode == 1){
+			// Prewitt
+			Gx = Pixel00 + Pixel10 + Pixel20 -
+				Pixel02 - Pixel12 - Pixel22;
+
+			Gy = Pixel00 + Pixel01 + Pixel02 -
+				Pixel20 - Pixel21 - Pixel22;
+		} else if(mode == 2){
+			// Scharr
+			Gx = 3*Pixel00 + 10 * Pixel10 + 3*Pixel20 -
+				3*Pixel02 - 10 * Pixel12 - 3*Pixel22;
+
+			Gy = 3*Pixel00 + 10 * Pixel01 + 3*Pixel02 -
+				3*Pixel20 - 10 * Pixel21 - 3*Pixel22;
+		} else if(mode == 3) {
+			// Roberts
+			Gx = Pixel11 - Pixel22;
+			Gy = Pixel12 - Pixel21;
+		}
+
+
 		// Holds the output RGB values
 		uint4 OutColor = (uint4)(0, 0, 0, 1);
 
@@ -89,29 +105,7 @@ __kernel void SobelFilter(
 
 		// Write the RGB value to the output image
 		write_imageui(outputImage, ImageCoordinate, (uint4)(Gray, Gray, Gray, 0));
-	}		
-}
-
-
-/*
-// Alternative way to generate Gx and Gy
-int2 StartImageCoordinate = (int2)(ImageCoordinate.x - 1, ImageCoordinate.y - 1);
-int2 EndImageCoordinate = (int2)(ImageCoordinate.x + 1, ImageCoordinate.y + 1);
-
-uint4 Gx = (uint4)(0, 0, 0, 0);
-uint4 Gy = (uint4)(0, 0, 0, 0);
-
-int Index = 0;
-
-for (int y = StartImageCoordinate.y; y < EndImageCoordinate.y; y++)
-{
-	for (int x = StartImageCoordinate.x; x < EndImageCoordinate.x; x++)
-	{ 
-		uint4 Pixel = read_imageui(sourceImage, Sampler, (int2)(x, y));
-		Gx += Pixel * HorizontalFilter[Index];
-		Gy += Pixel * VerticalFilter[Index];
-
-		Index++;
+		}
 	}
-}
-*/
+
+
